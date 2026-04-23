@@ -1,33 +1,18 @@
 """
 DNN with pytorch
-AB
-Dec, 2025
 """
 # system libraries
 import os
-import sys
-import copy
-import pickle
-import math
 import random
 import numpy as np
 import pandas as pd
-import lasio
 import seaborn as sb
 from matplotlib import pyplot as plt            
 # preprocessing
 from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.preprocessing import Normalizer
-from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder
-from sklearn.preprocessing import OneHotEncoder
 # model selection
 from sklearn.model_selection import train_test_split
-from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import cross_val_score
-from sklearn.model_selection import KFold
-from sklearn.model_selection import StratifiedKFold
 # Evaluation metrics_for regression
 from sklearn.metrics import r2_score
 from sklearn.metrics import mean_squared_error, mean_absolute_error
@@ -35,25 +20,6 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.metrics import classification_report
-from sklearn.metrics import precision_recall_curve
-# ML algorithms _ regression
-from sklearn import linear_model 
-from sklearn.linear_model import LinearRegression
-from sklearn.linear_model import LogisticRegression
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.svm import SVR
-from sklearn.naive_bayes import GaussianNB
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.ensemble import GradientBoostingRegressor
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.neural_network import MLPRegressor
-# ML algorithms _ classification
-from sklearn.svm import SVC
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.neural_network import MLPClassifier
-# from scikeras.wrappers import KerasRegressor
 # Deep neural network
 import torch
 import torch.nn as nn
@@ -61,16 +27,12 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import TensorDataset, DataLoader
-# from tensorflow.keras.utils import to_categorical
-
-# from torchvision import datasets
-# from torchvision.transforms import ToTensor
-# import tqdm 
 
 
 class SequentialNet(nn.Module):
     def __init__(self, input_dim, hidden_units, output_dim,
-                activation="relu", dropout_rate=0.0, batch_norm=False):
+                activation="relu", dropout_rate=0.0, batch_norm=False,
+                random_seed=42):
         super().__init__()
 
         # Ensure reproducibility 
@@ -168,11 +130,11 @@ def train_model(
 
     loss_fn, metrics_fn = get_loss_and_metrics(mode)
 
-    optimizer = optim.Adam(model.parameters(), lr=lr)#, weight_decay=weight_decay)
-    scheduler = ReduceLROnPlateau(optimizer, factor=0.5, patience=5)
+    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=5)
     early_stopper = EarlyStopping(patience=patience, save_path=save_path)
 
-    history = {"train_loss": [], "val_loss": []}
+    # history = {"train_loss": [], "val_loss": []}
 
     train_loss_hist = []
     val_loss_hist = []
@@ -183,16 +145,16 @@ def train_model(
         # ---- Train ----
         model.train()
         train_losses = []
-        test_losses = []
+        val_losses = []
         train_acc = []
-        test_acc = []
+        val_acc = []
 
         for xb, yb in train_loader:
             xb, yb = xb.to(device), yb.to(device)
 
             optimizer.zero_grad()
             preds = model(xb)
-            loss = loss_fn(preds, yb.unsqueeze(1))
+            loss = loss_fn(preds.squeeze(), yb) #yb.unsqueeze(1)
             loss.backward()
             optimizer.step()
 
@@ -207,7 +169,7 @@ def train_model(
         train_loss_hist.append(train_loss)
 
         if mode == "Classification":
-            train_acc_hist.append(train_acc)
+            train_acc_hist.append(np.mean(train_acc))
 
         # ---- Validation ----
         model.eval()
@@ -216,24 +178,24 @@ def train_model(
             for xb, yb in val_loader:
                 xb, yb = xb.to(device), yb.to(device)
                 preds = model(xb)
-                loss = loss_fn(preds, yb.unsqueeze(1)).item()
-                test_losses.append(loss)
+                loss = loss_fn(preds.squeeze(), yb).item() #yb.unsqueeze(1)
+                val_losses.append(loss)
 
                 if mode == 'Classification':
                     acc = float((torch.argmax(preds, dim=1) == yb).float().mean().item())
-                    test_acc.append(acc)
+                    val_acc.append(acc)
 
-        val_loss = np.mean(test_losses)
+        val_loss = np.mean(val_losses)
         val_loss_hist.append(val_loss)
 
         if mode == "Classification":
-            val_acc_hist.append(test_acc)
+            val_acc_hist.append(np.mean(val_acc))
 
         scheduler.step(val_loss)
         early_stopper.step(val_loss, model)
 
-        history["train_loss"].append(train_loss)
-        history["val_loss"].append(val_loss)
+        # history["train_loss"].append(train_loss)
+        # history["val_loss"].append(val_loss)
 
         print(
             f"Epoch {epoch+1:03d} | "
@@ -268,8 +230,8 @@ def evaluate_model(model, dataloader, mode):
             xb, yb = xb.to(device), yb.to(device)
             preds = model(xb)
 
-            losses.append(loss_fn(preds, yb.unsqueeze(1)).item())
-            metrics_all.append(metrics_fn(preds, yb))
+            losses.append(loss_fn(preds.squeeze(), yb).item()) #yb.unsqueeze(1)
+            metrics_all.append(metrics_fn(preds.squeeze(), yb))
 
     mean_loss = np.mean(losses)
 
@@ -282,7 +244,8 @@ def evaluate_model(model, dataloader, mode):
         r2 = np.mean([m["r2"] for m in metrics_all])
         return {"loss": mean_loss, "mae": mae, "r2": r2}
 
-def collect_predictions_pt(model, dataloader, mode):
+
+def collect_predictions_pt(model, dataloader, mode, target_encoder=None):
     device = next(model.parameters()).device
     model.eval()
 
@@ -303,13 +266,29 @@ def collect_predictions_pt(model, dataloader, mode):
     preds = np.concatenate(preds)
     targets = np.concatenate(targets)
 
+    if mode == "Classification" and target_encoder is not None:
+        preds = target_encoder.inverse_transform(preds)
+        targets = target_encoder.inverse_transform(targets)
+
     return preds, targets
+
+def save_predictions_to_csv(df, feature_cols, target_col, preds, output_path):
+    df_out = df.copy()
+
+    # align size (test set only)
+    df_out = df_out.iloc[:len(preds)].copy()
+
+    df_out["predicted_" + target_col] = preds
+
+    df_out.to_csv(output_path, index=False)
+    print(f"Saved predictions to {output_path}")
 
 def evaluate_classification_pt(
     y_pred,
     y_true,
-    classes
+    target_encoder
 ):
+    classes = target_encoder.classes_
     pred_labels = classes[y_pred]
     true_labels = classes[y_true]
 
@@ -391,7 +370,11 @@ def predict_from_checkpoint(
     output_dim,
     X,
     mode,
-    activation="relu"
+    activation,
+    target_encoder,
+    dropout_rate,
+    batch_norm,
+    random_seed
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -399,7 +382,10 @@ def predict_from_checkpoint(
         input_dim=input_dim,
         hidden_units=hidden_units,
         output_dim=output_dim,
-        activation=activation
+        activation=activation,
+        dropout_rate=dropout_rate,
+        batch_norm=batch_norm,
+        random_seed=random_seed
     )
     model.load_state_dict(torch.load(checkpoint_path))
     model.to(device)
@@ -412,27 +398,81 @@ def predict_from_checkpoint(
 
         if mode == "Classification":
             preds = preds.argmax(dim=1).cpu().numpy()
+            preds = target_encoder.inverse_transform(preds)
         else:
             preds = preds.cpu().numpy()
 
     return preds
 
+def load_and_preprocess_data(
+    filepath,
+    feature_cols,
+    target_col,
+    mode="Classification",
+    test_size=0.2,
+    random_state=0
+):
+    df = pd.read_csv(filepath)
+
+    # X = df[feature_cols].copy()
+    # y = df[target_col].copy()
+
+    X = df.iloc[:, :-1].copy()
+    y = df.iloc[:,-1].copy()
+
+    # ---- Handle non-numeric features ----
+    encoders = {}
+    for col in X.columns:
+        if not np.issubdtype(X[col].dtype, np.number):
+            le = LabelEncoder()
+            X[col] = le.fit_transform(X[col])
+            encoders[col] = le
+
+    # ---- Target encoding (classification only) ----
+    target_encoder = None
+    if mode == "Classification":
+        target_encoder = LabelEncoder()
+        y = target_encoder.fit_transform(y)
+        y = torch.tensor(y, dtype=torch.long)
+    else:
+        y = torch.tensor(y.values, dtype=torch.float32)
+
+    # ---- Train/test split ----
+    Xtrain, Xtest, Ytrain, Ytest = train_test_split(
+        X, y, test_size=test_size, random_state=random_state, shuffle=True
+    )
+
+    # ---- Scaling ----
+    scaler = StandardScaler()
+    Xtrain = scaler.fit_transform(Xtrain)
+    Xtest = scaler.transform(Xtest)
+
+    # ---- Convert to tensors ----
+    Xtrain = torch.tensor(Xtrain, dtype=torch.float32)
+    Xtest = torch.tensor(Xtest, dtype=torch.float32)
+
+    if isinstance(Ytrain, torch.Tensor) is False:
+        Ytrain = torch.tensor(Ytrain)
+        Ytest = torch.tensor(Ytest)
+
+    return Xtrain, Xtest, Ytrain, Ytest, scaler, target_encoder, df
+
+
 
 
 if __name__ == '__main__':
 
-    mode='Regression'
-    # mode='Classification'
+    device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
+    print(f"Using {device} device") 
 
-    # model = 'Sequential'
-    # model = 'Model' # For Regression
+    mode = "Classification"
+    # mode='Regression'
 
     # Parameters
     random_seed=42
     activation='relu'
     optimizer='adam'
     units=[64,128,64]
-    # units = [8, 8]    
     lr=0.0001 
     dropout_rate=0#0.1
     batch_norm=False#True
@@ -449,89 +489,38 @@ if __name__ == '__main__':
     verbose=1
     weight_decay=1e-4
 
-    # device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
-    device = "cpu"
-    print(f"Using {device} device")
+    FEATURE_COLS = ["sepal_length", "sepal_width", "petal_length", "petal_width"]  # example
+    TARGET_COL = "species"
+    CSV_PATH = "iris.csv"
+
 
     if mode=='Regression':
-        # filepath=r"C:\Users\Lenovo\Desktop\DNN_2025\housing.csv"
-        filepath=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/housing.csv"
-        dataset=pd.read_csv(filepath)
-        # dataset=dataframe.values
-        X=dataset.iloc[:,:13]
-        Y=list(dataset.iloc[:,13])
-        # from sklearn.datasets import fetch_california_housing
-        # data = fetch_california_housing()
-        # X, Y = data.data, data.target
-        dtype = torch.float32
-
-        # units.insert(0, X.shape[1])
-        # units.append(1)
-        print(f"units are:{units}")
-
-        input_dim = X.shape[1]
-        output_dim = 1
-
-        # loss_fn = nn.MSELoss()
+        CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/housing.csv"
 
     elif mode=='Classification':
-        # filepath=r"C:\Users\Lenovo\Desktop\DNN_2025\iris.csv"
-        filepath=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/iris.csv"
-        dataset=pd.read_csv(filepath)
-        X=dataset.iloc[:,:4].astype(float)
-        Y=list(dataset.iloc[:,4])
+        CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/iris.csv"
+        
+    Xtrain, Xtest, Ytrain, Ytest, scaler, target_encoder, df = \
+        load_and_preprocess_data(
+            CSV_PATH,
+            FEATURE_COLS,
+            TARGET_COL,
+            mode=mode
+        )
 
-        encoder = LabelEncoder()
-        encoder.fit(Y)
-        encoded_Y = encoder.transform(Y)
-        Y = torch.from_numpy(encoded_Y).long()
-        dtype = torch.long
+    train_dataloader = DataLoader(TensorDataset(Xtrain, Ytrain), batch_size=8, shuffle=True)
+    test_dataloader  = DataLoader(TensorDataset(Xtest, Ytest), batch_size=8, shuffle=False)
 
-        last_unit=len(np.unique(encoded_Y))
-        # units.insert(0, X.shape[1])
-        # units.append(last_unit)
-        print(f"units are:{units}")
-
-        input_dim = X.shape[1]
-        output_dim = last_unit
-        classes = np.unique(Y.numpy())
-
-        # num_classes = len(np.unique(encoded_Y))
-        # Y_onehot = F.one_hot(torch.tensor(encoded_Y, dtype=torch.long), num_classes).float()
-        # Y_float = torch.tensor(encoded_Y, dtype=torch.float).unsqueeze(1)  
-        # loss_fn = nn.BCEWithLogitsLoss()   
-        # ohe = OneHotEncoder(handle_unknown='ignore', sparse_output=False).fit(Y)
-        # ohe.fit(Y)
-        # y = ohe.transform(Y)
-
-        # loss_fn = nn.CrossEntropyLoss()
-
-
-    Xtrain, Xtest, Ytrain, Ytest = train_test_split(X,Y,test_size=0.2,random_state=0, shuffle=True)
-    scale=StandardScaler()
-    Xtrain=scale.fit_transform(Xtrain)
-    Xtest=scale.transform(Xtest)
-
-    Xtrain = torch.tensor(Xtrain, dtype=torch.float32) 
-    Xtest = torch.tensor(Xtest, dtype=torch.float32) 
-    Ytrain = torch.tensor(Ytrain, dtype=dtype)
-    Ytest = torch.tensor(Ytest, dtype=dtype)
-
-    # n_epochs = 100
-    # batch_size = 64
-    # batch_start = torch.arange(0, len(Xtrain), batch_size)
-
-    train_dataset = TensorDataset(Xtrain, Ytrain)
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    test_dataset = TensorDataset(Xtest, Ytest)
-    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
-    
-
+    input_dim = Xtrain.shape[1]
+    output_dim = len(np.unique(Ytrain.numpy())) if mode=="Classification" else 1
     model = SequentialNet(
         input_dim=input_dim,
         hidden_units=units,
         output_dim=output_dim,
-        activation="relu"
+        activation="relu",
+        dropout_rate=dropout_rate,
+        batch_norm=batch_norm,
+        random_seed=random_seed
     )
 
     model, history = train_model(
@@ -557,13 +546,15 @@ if __name__ == '__main__':
         acc, cm = evaluate_classification_pt(
             y_pred,
             y_true,
-            classes
+            target_encoder
         )
     else:
         r2, mae = evaluate_regression_pt(
             y_pred,
             y_true
         )
+
+    # print(history)
 
     # ---- Training curves ----
     plot_training_curves_pt(
@@ -578,6 +569,17 @@ if __name__ == '__main__':
         hidden_units=units,
         output_dim=output_dim,
         X=Xtest.numpy(),
-        mode=mode
+        mode=mode,
+        activation=activation,
+        target_encoder=target_encoder,
+        dropout_rate=dropout_rate,
+        batch_norm=batch_norm,
+        random_seed=random_seed
     )
 
+    print(preds)
+
+# compare-class 
+# params-targ-mode 
+# csv-rmse-accuracy-lossmodel
+# dashboard-download  

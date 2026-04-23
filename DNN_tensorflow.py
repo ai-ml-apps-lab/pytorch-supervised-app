@@ -1,7 +1,5 @@
 """
 DNN with tensorflow
-AB
-Dec, 2025
 """
 # system libraries
 import os
