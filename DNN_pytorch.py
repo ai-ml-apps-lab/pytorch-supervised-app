@@ -1,5 +1,9 @@
 """
-DNN with pytorch
+pytorch supervised learning template for classification and regression tasks, 
+with early stopping, learning rate scheduling, and comprehensive evaluation metrics.
+The code is organized into modular functions for data loading, model definition, 
+training, evaluation, and prediction. It supports both classification and regression modes, 
+allowing for flexible use across different datasets and tasks.
 """
 # system libraries
 import os
@@ -45,8 +49,8 @@ class SequentialNet(nn.Module):
             "relu": nn.ReLU(),
             "tanh": nn.Tanh(),
             "sigmoid": nn.Sigmoid(),
-            # "softmax": nn.Softmax(dim=1)
-        }
+            "leaky_relu": nn.LeakyReLU()
+            }
         act = act_map[activation]
 
         layers = []
@@ -123,7 +127,10 @@ def train_model(
     lr=1e-4,
     weight_decay=1e-4,
     patience=10,
-    save_path="best_model.pth"
+    save_path="best_model.pth",
+    lr_factor=0.5,
+    lr_patience=5,
+
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -131,10 +138,8 @@ def train_model(
     loss_fn, metrics_fn = get_loss_and_metrics(mode)
 
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
-    scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=5)
+    scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=lr_factor, patience=lr_patience)
     early_stopper = EarlyStopping(patience=patience, save_path=save_path)
-
-    # history = {"train_loss": [], "val_loss": []}
 
     train_loss_hist = []
     val_loss_hist = []
@@ -154,7 +159,7 @@ def train_model(
 
             optimizer.zero_grad()
             preds = model(xb)
-            loss = loss_fn(preds.squeeze(), yb) #yb.unsqueeze(1)
+            loss = loss_fn(preds.squeeze(), yb)
             loss.backward()
             optimizer.step()
 
@@ -178,12 +183,14 @@ def train_model(
             for xb, yb in val_loader:
                 xb, yb = xb.to(device), yb.to(device)
                 preds = model(xb)
-                loss = loss_fn(preds.squeeze(), yb).item() #yb.unsqueeze(1)
-                val_losses.append(loss)
+                loss = loss_fn(preds.squeeze(), yb)
+
+                val_losses.append(loss.item())
 
                 if mode == 'Classification':
-                    acc = float((torch.argmax(preds, dim=1) == yb).float().mean().item())
-                    val_acc.append(acc)
+                    preds = torch.argmax(preds, dim=1)
+                    acc = (preds == yb).float().mean()
+                    val_acc.append(float(acc.item()))
 
         val_loss = np.mean(val_losses)
         val_loss_hist.append(val_loss)
@@ -194,13 +201,11 @@ def train_model(
         scheduler.step(val_loss)
         early_stopper.step(val_loss, model)
 
-        # history["train_loss"].append(train_loss)
-        # history["val_loss"].append(val_loss)
 
         print(
-            f"Epoch {epoch+1:03d} | "
-            f"Train: {train_loss:.4f} | "
-            f"Val: {val_loss:.4f}"
+            f"Epoch:      {epoch+1:03d} | "
+            f"Train Loss: {train_loss:.4f} | "
+            f"Val Loss:   {val_loss:.4f}"
         )
 
         if early_stopper.should_stop:
@@ -218,6 +223,7 @@ def train_model(
     return model, history
 
 def evaluate_model(model, dataloader, mode):
+
     device = next(model.parameters()).device
     loss_fn, metrics_fn = get_loss_and_metrics(mode)
 
@@ -230,8 +236,11 @@ def evaluate_model(model, dataloader, mode):
             xb, yb = xb.to(device), yb.to(device)
             preds = model(xb)
 
-            losses.append(loss_fn(preds.squeeze(), yb).item()) #yb.unsqueeze(1)
-            metrics_all.append(metrics_fn(preds.squeeze(), yb))
+            loss = loss_fn(preds.squeeze(), yb)
+            losses.append(loss.item())
+
+            metrics = metrics_fn(preds.squeeze(), yb)
+            metrics_all.append(metrics)
 
     mean_loss = np.mean(losses)
 
@@ -245,7 +254,8 @@ def evaluate_model(model, dataloader, mode):
         return {"loss": mean_loss, "mae": mae, "r2": r2}
 
 
-def collect_predictions_pt(model, dataloader, mode, target_encoder=None):
+def collect_predictions(model, dataloader, mode, target_encoder=None):
+
     device = next(model.parameters()).device
     model.eval()
 
@@ -272,25 +282,24 @@ def collect_predictions_pt(model, dataloader, mode, target_encoder=None):
 
     return preds, targets
 
-def save_predictions_to_csv(df, feature_cols, target_col, preds, output_path):
+def save_predictions_to_csv(df, target_col, preds, output_path):
+
     df_out = df.copy()
-
-    # align size (test set only)
     df_out = df_out.iloc[:len(preds)].copy()
-
     df_out["predicted_" + target_col] = preds
-
     df_out.to_csv(output_path, index=False)
+
     print(f"Saved predictions to {output_path}")
 
 def evaluate_classification_pt(
-    y_pred,
-    y_true,
+    pred_labels,
+    true_labels,
     target_encoder
 ):
+    
     classes = target_encoder.classes_
-    pred_labels = classes[y_pred]
-    true_labels = classes[y_true]
+    # pred_labels = classes[y_pred]
+    # true_labels = classes[y_true]
 
     acc = accuracy_score(true_labels, pred_labels)
     print(f"Samples: {len(y_pred)}  Accuracy: {acc*100:.2f}%")
@@ -321,8 +330,8 @@ def evaluate_regression_pt(
     r2 = r2_score(y_true, y_pred)
     mae = mean_absolute_error(y_true, y_pred)
 
-    print(f"R²: {r2:.4f}")
-    print(f"MAE: {mae:.4f}")
+    print(f"r²: {r2:.4f}")
+    print(f"mae: {mae:.4f}")
 
     plt.figure()
     plt.scatter(y_pred, y_true, alpha=0.7)
@@ -364,7 +373,7 @@ def plot_training_curves_pt(
 
 
 def predict_from_checkpoint(
-    checkpoint_path,
+    model_name,
     input_dim,
     hidden_units,
     output_dim,
@@ -387,7 +396,7 @@ def predict_from_checkpoint(
         batch_norm=batch_norm,
         random_seed=random_seed
     )
-    model.load_state_dict(torch.load(checkpoint_path))
+    model.load_state_dict(torch.load(model_name))
     model.to(device)
     model.eval()
 
@@ -398,7 +407,8 @@ def predict_from_checkpoint(
 
         if mode == "Classification":
             preds = preds.argmax(dim=1).cpu().numpy()
-            preds = target_encoder.inverse_transform(preds)
+            if target_encoder is not None:
+                preds = target_encoder.inverse_transform(preds)
         else:
             preds = preds.cpu().numpy()
 
@@ -410,7 +420,8 @@ def load_and_preprocess_data(
     target_col,
     mode="Classification",
     test_size=0.2,
-    random_state=0
+    random_state=42,
+    batch_size=32
 ):
     df = pd.read_csv(filepath)
 
@@ -420,15 +431,13 @@ def load_and_preprocess_data(
     X = df.iloc[:, :-1].copy()
     y = df.iloc[:,-1].copy()
 
-    # ---- Handle non-numeric features ----
-    encoders = {}
+    # Handle non-numeric features
     for col in X.columns:
         if not np.issubdtype(X[col].dtype, np.number):
             le = LabelEncoder()
             X[col] = le.fit_transform(X[col])
-            encoders[col] = le
 
-    # ---- Target encoding (classification only) ----
+    #Target encoding (classification only) 
     target_encoder = None
     if mode == "Classification":
         target_encoder = LabelEncoder()
@@ -437,17 +446,17 @@ def load_and_preprocess_data(
     else:
         y = torch.tensor(y.values, dtype=torch.float32)
 
-    # ---- Train/test split ----
+    # Train/test split
     Xtrain, Xtest, Ytrain, Ytest = train_test_split(
         X, y, test_size=test_size, random_state=random_state, shuffle=True
     )
 
-    # ---- Scaling ----
+    # Scaling 
     scaler = StandardScaler()
     Xtrain = scaler.fit_transform(Xtrain)
     Xtest = scaler.transform(Xtest)
 
-    # ---- Convert to tensors ----
+    # Convert to tensors
     Xtrain = torch.tensor(Xtrain, dtype=torch.float32)
     Xtest = torch.tensor(Xtest, dtype=torch.float32)
 
@@ -455,14 +464,22 @@ def load_and_preprocess_data(
         Ytrain = torch.tensor(Ytrain)
         Ytest = torch.tensor(Ytest)
 
-    return Xtrain, Xtest, Ytrain, Ytest, scaler, target_encoder, df
+
+    train_dataloader = DataLoader(TensorDataset(Xtrain, Ytrain), batch_size=batch_size, shuffle=True)
+    test_dataloader  = DataLoader(TensorDataset(Xtest, Ytest), batch_size=batch_size, shuffle=False)
+
+    input_dim = Xtrain.shape[1]
+    output_dim = len(np.unique(Ytrain.numpy())) if mode=="Classification" else 1
+
+    return train_dataloader, test_dataloader, Xtest.numpy(), input_dim, output_dim, scaler, target_encoder, df
 
 
 
 
 if __name__ == '__main__':
 
-    device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
+    # for class 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using {device} device") 
 
     mode = "Classification"
@@ -477,19 +494,20 @@ if __name__ == '__main__':
     dropout_rate=0#0.1
     batch_norm=False#True
     l2_reg=None#1e-4
-    # metrics=None
-    # loss=None
     callback=False#True
     patience=10
     lr_factor=0.5
-    h5='best_model.h5'
+    lr_patience=5
+    model_name='best_model.pth'
     log_dir='./logs'
     epochs=30
+    test_size=0.2
+    random_state=42
     batch_size=8
     verbose=1
     weight_decay=1e-4
 
-    FEATURE_COLS = ["sepal_length", "sepal_width", "petal_length", "petal_width"]  # example
+    FEATURE_COLS = ["sepal_length", "sepal_width", "petal_length", "petal_width"] 
     TARGET_COL = "species"
     CSV_PATH = "iris.csv"
 
@@ -500,24 +518,22 @@ if __name__ == '__main__':
     elif mode=='Classification':
         CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/iris.csv"
         
-    Xtrain, Xtest, Ytrain, Ytest, scaler, target_encoder, df = \
+    train_dataloader, test_dataloader, Xtest, input_dim, output_dim, scaler, target_encoder, df = \
         load_and_preprocess_data(
             CSV_PATH,
             FEATURE_COLS,
             TARGET_COL,
-            mode=mode
+            mode=mode,
+            test_size=test_size,
+            random_state=random_state,
+            batch_size=batch_size
         )
 
-    train_dataloader = DataLoader(TensorDataset(Xtrain, Ytrain), batch_size=8, shuffle=True)
-    test_dataloader  = DataLoader(TensorDataset(Xtest, Ytest), batch_size=8, shuffle=False)
-
-    input_dim = Xtrain.shape[1]
-    output_dim = len(np.unique(Ytrain.numpy())) if mode=="Classification" else 1
     model = SequentialNet(
         input_dim=input_dim,
         hidden_units=units,
         output_dim=output_dim,
-        activation="relu",
+        activation=activation,
         dropout_rate=dropout_rate,
         batch_norm=batch_norm,
         random_seed=random_seed
@@ -532,16 +548,17 @@ if __name__ == '__main__':
         lr=lr,
         weight_decay=weight_decay,
         patience=patience,
-        save_path="best_model.pth"
+        save_path=model_name,
+        lr_factor=lr_factor,
+        lr_patience=lr_patience,
     )
 
     results = evaluate_model(model, test_dataloader, mode)
-    print(results)
 
-    # ---- Collect predictions ----
-    y_pred, y_true = collect_predictions_pt(model, test_dataloader, mode)
+    # Collect predictions
+    y_pred, y_true = collect_predictions(model, test_dataloader, mode, target_encoder)
 
-    # ---- Evaluation ----
+    # Evaluation
     if mode == "Classification":
         acc, cm = evaluate_classification_pt(
             y_pred,
@@ -554,21 +571,18 @@ if __name__ == '__main__':
             y_true
         )
 
-    # print(history)
-
-    # ---- Training curves ----
+    # Training curves 
     plot_training_curves_pt(
         history
     )
 
-
     # Prediction only (no training code involved)
     preds = predict_from_checkpoint(
-        "best_model.pth",
+        model_name=model_name,
         input_dim=input_dim,
         hidden_units=units,
         output_dim=output_dim,
-        X=Xtest.numpy(),
+        X=Xtest,
         mode=mode,
         activation=activation,
         target_encoder=target_encoder,
@@ -579,7 +593,7 @@ if __name__ == '__main__':
 
     print(preds)
 
-# compare-class 
+# class 
 # params-targ-mode 
 # csv-rmse-accuracy-lossmodel
 # dashboard-download  
