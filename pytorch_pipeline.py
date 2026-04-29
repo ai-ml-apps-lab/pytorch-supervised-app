@@ -6,6 +6,7 @@ training, evaluation, and prediction. It supports both classification and regres
 allowing for flexible use across different datasets and tasks.
 """
 # system libraries
+from csv import writer
 import os
 import random
 import numpy as np
@@ -130,6 +131,7 @@ class DeepLearningPipeline:
         train_loader,
         val_loader,
         num_epochs=100,
+        optimizer_name='adam',
         lr=1e-4,
         weight_decay=1e-4,
         patience=10,
@@ -142,7 +144,13 @@ class DeepLearningPipeline:
 
         loss_fn, metrics_fn = self.get_loss_and_metrics()
 
-        optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+        if optimizer_name == 'adam':
+            optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+        elif optimizer_name == 'sgd':
+            optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=weight_decay)
+        elif optimizer_name == 'rmsprop':
+            optimizer = optim.RMSprop(model.parameters(), lr=lr, momentum=0.9, weight_decay=weight_decay)
+
         scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=lr_factor, patience=lr_patience)
         early_stopper = self.EarlyStopping(patience=patience, save_path=save_path)
 
@@ -151,8 +159,10 @@ class DeepLearningPipeline:
         train_acc_hist = []
         val_acc_hist = []
 
+        writer = SummaryWriter(log_dir="./logs")
+
         for epoch in range(num_epochs):
-            # ---- Train ----
+            # Train
             model.train()
             train_losses = []
             train_acc = []
@@ -213,10 +223,19 @@ class DeepLearningPipeline:
                     f"Val Loss:   {val_loss:.4f}"
                 )
 
+            writer.add_scalar("Loss/Train", train_loss, epoch)
+            writer.add_scalar("Loss/Validation", val_loss, epoch)
+            writer.add_scalar("LR", optimizer.param_groups[0]['lr'], epoch)
+
+            if self.mode == "Classification":
+                writer.add_scalar("Accuracy/Train", np.mean(train_acc), epoch)
+                writer.add_scalar("Accuracy/Validation", np.mean(val_acc), epoch)
+            
             if early_stopper.should_stop:
                 break
 
-        writer = SummaryWriter(log_dir="./logs")
+        writer.close()
+
         model.load_state_dict(torch.load(save_path))
 
         history = {
@@ -362,23 +381,23 @@ class DeepLearningPipeline:
     ):
         
         train_loss_hist = history["train_loss"]
-        test_loss_hist  = history["val_loss"]
+        val_loss_hist  = history["val_loss"]
         train_acc_hist  = history["train_acc"]
-        test_acc_hist   = history["val_acc"]
+        val_acc_hist   = history["val_acc"]
 
         plt.figure()
         plt.plot(train_loss_hist, label="train")
-        plt.plot(test_loss_hist, label="test")
+        plt.plot(val_loss_hist, label="validation")
         plt.xlabel("Epochs")
         plt.ylabel("Loss")
         plt.legend()
         plt.grid(True)
         plt.show()
 
-        if train_acc_hist is not None and test_acc_hist is not None:
+        if train_acc_hist is not None and val_acc_hist is not None:
             plt.figure()
             plt.plot(train_acc_hist, label="train")
-            plt.plot(test_acc_hist, label="test")
+            plt.plot(val_acc_hist, label="validation")
             plt.xlabel("Epochs")
             plt.ylabel("Accuracy")
             plt.legend()
@@ -433,19 +452,18 @@ class DeepLearningPipeline:
     def load_and_preprocess_data(
         self,
         filepath,
-        feature_cols,
         target_col,
         test_size=0.2,
-        random_state=42,
+        random_seed=42,
         batch_size=32
     ):
         df = pd.read_csv(filepath)
 
-        # X = df[feature_cols].copy()
-        # y = df[target_col].copy()
+        X = df.drop(columns=[target_col]).copy()
+        y = df[target_col].copy()
 
-        X = df.iloc[:, :-1].copy()
-        y = df.iloc[:,-1].copy()
+        # X = df.iloc[:, :-1].copy()
+        # y = df.iloc[:,-1].copy()
 
         # Handle non-numeric features
         for col in X.columns:
@@ -464,7 +482,7 @@ class DeepLearningPipeline:
 
         # Train/test split
         Xtrain, Xtest, Ytrain, Ytest = train_test_split(
-            X, y, test_size=test_size, random_state=random_state, shuffle=True
+            X, y, test_size=test_size, random_state=random_seed, shuffle=True
         )
 
         # Scaling 
@@ -493,17 +511,14 @@ class DeepLearningPipeline:
 
 if __name__ == '__main__':
 
-    # for class 
-    self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using {self.device} self.device") 
 
-    mode = "Classification"
-    # mode='Regression'
+    # mode = "Classification"
+    mode='Regression'
 
     # Parameters
     random_seed=42
     activation='relu'
-    optimizer='adam'
+    optimizer='adam'#'sgd'#'rmsprop'
     units=[64,128,64]
     lr=0.0001 
     dropout_rate=0#0.1
@@ -517,14 +532,12 @@ if __name__ == '__main__':
     # log_dir='./logs'
     epochs=30
     test_size=0.2
-    random_state=42
     batch_size=8
     # verbose=1
     weight_decay=1e-4#l2_reg
 
     FEATURE_COLS = ["sepal_length", "sepal_width", "petal_length", "petal_width"] 
-    TARGET_COL = "species"
-    CSV_PATH = "iris.csv"
+    target_col = "species"
 
 
     if mode=='Regression':
@@ -532,15 +545,15 @@ if __name__ == '__main__':
 
     elif mode=='Classification':
         CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/iris.csv"
-        
+
+    pipe = DeepLearningPipeline(mode=mode)
+
     train_dataloader, test_dataloader, Xtest, input_dim, output_dim, scaler, target_encoder, df = \
-        load_and_preprocess_data(
+        pipe.load_and_preprocess_data(
             CSV_PATH,
-            FEATURE_COLS,
-            TARGET_COL,
-            mode=mode,
+            target_col,
             test_size=test_size,
-            random_state=random_state,
+            random_seed=random_seed,
             batch_size=batch_size
         )
 
@@ -554,12 +567,12 @@ if __name__ == '__main__':
         random_seed=random_seed
     )
 
-    model, history = train_model(
+    model, history = pipe.train_model(
         model,
         train_dataloader,
         test_dataloader,
-        mode=mode,
         num_epochs=epochs,
+        optimizer_name=optimizer,
         lr=lr,
         weight_decay=weight_decay,
         patience=patience,
@@ -568,37 +581,36 @@ if __name__ == '__main__':
         lr_patience=lr_patience,
     )
 
-    results = evaluate_model(model, test_dataloader, mode)
+    results = pipe.evaluate_model(model, test_dataloader)
 
     # Collect predictions
-    y_pred, y_true = collect_predictions(model, test_dataloader, mode, target_encoder)
+    y_pred, y_true = pipe.collect_predictions(model, test_dataloader, target_encoder)
 
     # Evaluation
     if mode == "Classification":
-        acc, cm = evaluate_classification_pt(
+        acc, cm = pipe.evaluate_classification_pt(
             y_pred,
             y_true,
             target_encoder
         )
     else:
-        r2, mae = evaluate_regression_pt(
+        r2, mae = pipe.evaluate_regression_pt(
             y_pred,
             y_true
         )
 
     # Training curves 
-    plot_training_curves_pt(
+    pipe.plot_training_curves_pt(
         history
     )
 
     # Prediction only (no training code involved)
-    preds = predict_from_checkpoint(
+    preds = pipe.predict_from_checkpoint(
         model_name=model_name,
         input_dim=input_dim,
         hidden_units=units,
         output_dim=output_dim,
         X=Xtest,
-        mode=mode,
         activation=activation,
         target_encoder=target_encoder,
         dropout_rate=dropout_rate,
@@ -609,8 +621,5 @@ if __name__ == '__main__':
     print(preds)
 
 
-# params-targ-mode 
-# csv-rmse-accuracy-lossmodel
-# dashboard-download  
 # public web app 
 
