@@ -9,7 +9,7 @@ st.set_page_config(layout="wide")
 st.title("PyTorch Deep Learning UI")
 
 # SIDEBAR CONFIG
-st.sidebar.header("⚙️ Configuration")
+# st.sidebar.header("⚙️ Configuration")
 
 # Upload CSV
 uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
@@ -25,47 +25,57 @@ st.dataframe(df.head())
 
 columns = df.columns.tolist()
 
-# Mode
-mode = st.sidebar.selectbox("Mode", ["Classification", "Regression"])
 
-# Target column
-target_col = st.sidebar.selectbox("Target Column", columns)
 
 # PARAMETERS
 st.sidebar.subheader("Model Parameters")
 
-random_seed = st.sidebar.number_input("Random Seed", value=42)
+col1, col2, col3 = st.sidebar.columns(3)
 
-activation = st.sidebar.selectbox(
-    "Activation", ["relu", "tanh", "sigmoid", "leaky_relu"]
-)
+with col1:
 
-optimizer = st.sidebar.selectbox("Optimizer", ["adam", "sgd", "rmsprop"])
+    # Mode
+    mode = st.selectbox("Mode", ["Classification", "Regression"])
 
-units_str = st.sidebar.text_input("Hidden Units", "[64,128,64]")
-units = eval(units_str)
+    # Target column
+    target_col = st.selectbox("Target Column", columns)
 
-lr = st.sidebar.number_input("Learning Rate", value=0.0001, format="%.5f")
+    random_seed = st.number_input("Random Seed", value=42)
 
-dropout_rate = st.sidebar.number_input("Dropout", value=0.0)
+    activation = st.selectbox(
+        "Activation", ["relu", "tanh", "sigmoid", "leaky_relu"]
+    )
 
-batch_norm = st.sidebar.selectbox("Batch Norm", [False, True])
+    optimizer = st.selectbox("Optimizer", ["adam", "sgd", "rmsprop"])
 
-patience = st.sidebar.number_input("Patience", value=10)
+    units_str = st.text_input("Hidden Units", "[64,128,64]")
+    units = eval(units_str)
 
-lr_factor = st.sidebar.number_input("LR Factor", value=0.5)
+with col2:
 
-lr_patience = st.sidebar.number_input("LR Patience", value=5)
+    lr = st.number_input("Learning Rate", value=0.0001, format="%.5f")
 
-model_name = st.sidebar.text_input("Model Name", "best_model.pth")
+    dropout_rate = st.number_input("Dropout", value=0.0)
 
-epochs = st.sidebar.number_input("Epochs", value=30)
+    batch_norm = st.selectbox("Batch Norm", [False, True])
 
-test_size = st.sidebar.number_input("Test Size", value=0.2)
+    patience = st.number_input("Patience", value=10)
 
-batch_size = st.sidebar.number_input("Batch Size", value=8)
+    lr_factor = st.number_input("LR Factor", value=0.5)
 
-weight_decay = st.sidebar.number_input("Weight Decay", value=1e-4, format="%.6f")
+    lr_patience = st.number_input("LR Patience", value=5)
+
+with col3:
+
+    model_name = st.text_input("Model Name", "best_model.pth") #####
+
+    epochs = st.number_input("Epochs", value=30)
+
+    test_size = st.number_input("Test Size", value=0.2)
+
+    batch_size = st.number_input("Batch Size", value=8)
+
+    weight_decay = st.number_input("Weight Decay", value=1e-4, format="%.6f")
 
 
 # RUN BUTTON
@@ -77,7 +87,7 @@ if st.button("🚀 Run Training"):
     temp_path = "temp.csv"
     df.to_csv(temp_path, index=False)
 
-    train_loader, test_loader, Xtest, input_dim, output_dim, scaler, target_encoder, df_full = \
+    train_loader, test_loader, X, Xtest, input_dim, output_dim, scaler, target_encoder, df_full = \
         pipe.load_and_preprocess_data(
             temp_path,
             target_col=target_col,
@@ -161,17 +171,29 @@ if st.button("🚀 Run Training"):
         st.write(f"MAE: {mae:.4f}")
         st.write(f"R2: {r2:.4f}")
 
-        st.scatter_chart(pd.DataFrame({
-            "Predictions": y_pred.flatten(),
-            "Targets": y_true.flatten()
-        }))
+        # st.scatter_chart(pd.DataFrame({
+        #     "Predictions": y_pred.flatten(),
+        #     "Targets": y_true.flatten()
+        # }))
 
     # SAVE CSV
     st.subheader("💾 Download Predictions")
 
+    preds = pipe.predict_from_checkpoint(
+        model_name,
+        input_dim,
+        units,
+        output_dim,
+        X,
+        activation,
+        target_encoder,
+        dropout_rate,
+        batch_norm,
+        random_seed
+    )
+
     df_out = df.copy()
-    df_out = df_out.iloc[:len(y_pred)].copy()
-    df_out["predicted_" + target_col] = y_pred
+    df_out["predicted_" + target_col] = preds
 
     csv = df_out.to_csv(index=False).encode('utf-8')
 

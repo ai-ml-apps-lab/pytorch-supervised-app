@@ -117,7 +117,7 @@ class DeepLearningPipeline:
                 self.best_loss = val_loss
                 self.counter = 0
                 torch.save(model.state_dict(), self.save_path)
-                print(f"Model improved. Saved to {self.save_path}")
+                # print(f"Model improved. Saved to {self.save_path}")
             else:
                 self.counter += 1
                 if self.counter >= self.patience:
@@ -216,25 +216,25 @@ class DeepLearningPipeline:
             scheduler.step(val_loss)
             early_stopper.step(val_loss, model)
 
-            if epoch % 10 == 0:
+            if (epoch+1) % 10 == 0:
                 print(
                     f"Epoch:      {epoch+1:03d} | "
                     f"Train Loss: {train_loss:.4f} | "
                     f"Val Loss:   {val_loss:.4f}"
                 )
 
-            writer.add_scalar("Loss/Train", train_loss, epoch)
-            writer.add_scalar("Loss/Validation", val_loss, epoch)
-            writer.add_scalar("LR", optimizer.param_groups[0]['lr'], epoch)
+            # writer.add_scalar("Loss/Train", train_loss, epoch)
+            # writer.add_scalar("Loss/Validation", val_loss, epoch)
+            # writer.add_scalar("LR", optimizer.param_groups[0]['lr'], epoch)
 
-            if self.mode == "Classification":
-                writer.add_scalar("Accuracy/Train", np.mean(train_acc), epoch)
-                writer.add_scalar("Accuracy/Validation", np.mean(val_acc), epoch)
+            # if self.mode == "Classification":
+            #     writer.add_scalar("Accuracy/Train", np.mean(train_acc), epoch)
+            #     writer.add_scalar("Accuracy/Validation", np.mean(val_acc), epoch)
             
             if early_stopper.should_stop:
                 break
 
-        writer.close()
+        # writer.close()
 
         model.load_state_dict(torch.load(save_path))
 
@@ -249,8 +249,7 @@ class DeepLearningPipeline:
 
     def evaluate_model(self, model, dataloader):
 
-        device = next(model.parameters()).device
-        model.to(device)
+        model.to(self.device)
 
         loss_fn, metrics_fn = self.get_loss_and_metrics()
 
@@ -260,7 +259,7 @@ class DeepLearningPipeline:
 
         with torch.no_grad():
             for xb, yb in dataloader:
-                xb, yb = xb.to(device), yb.to(device)
+                xb, yb = xb.to(self.device), yb.to(self.device)
                 preds = model(xb)
 
                 loss = loss_fn(preds.squeeze(), yb)
@@ -283,8 +282,7 @@ class DeepLearningPipeline:
     # PREDICTIONS
     def collect_predictions(self, model, dataloader, target_encoder=None):
 
-        device = next(model.parameters()).device
-        model.to(device)
+        model.to(self.device)
 
         model.eval()
 
@@ -293,7 +291,7 @@ class DeepLearningPipeline:
 
         with torch.no_grad():
             for X, y in dataloader:
-                X, y = X.to(device), y.to(device)
+                X, y = X.to(self.device), y.to(self.device)
                 out = model(X)
 
                 if self.mode == "Classification":
@@ -333,7 +331,7 @@ class DeepLearningPipeline:
         # true_labels = classes[y_true]
 
         acc = accuracy_score(true_labels, pred_labels)
-        print(f"Samples: {len(y_pred)}  Accuracy: {acc*100:.2f}%")
+        print(f"Samples: {len(pred_labels)}  Accuracy: {acc*100:.2f}%")
         print(classification_report(true_labels, pred_labels))
 
         cm = confusion_matrix(true_labels, pred_labels)
@@ -419,7 +417,6 @@ class DeepLearningPipeline:
         random_seed
     ):
 
-        device = next(model.parameters()).device
 
         model = SequentialNet(
             input_dim=input_dim,
@@ -430,12 +427,12 @@ class DeepLearningPipeline:
             batch_norm=batch_norm,
             random_seed=random_seed
         )
-        
-        model.load_state_dict(torch.load(model_name))
-        model.to(device)
+
+        model.load_state_dict(torch.load(model_name, map_location=self.device))
+        model.to(self.device)
         model.eval()
 
-        X = torch.tensor(X, dtype=torch.float32).to(device)
+        X = torch.tensor(X, dtype=torch.float32).to(self.device)
 
         with torch.no_grad():
             preds = model(X)
@@ -489,6 +486,7 @@ class DeepLearningPipeline:
         scaler = StandardScaler()
         Xtrain = scaler.fit_transform(Xtrain)
         Xtest = scaler.transform(Xtest)
+        X = scaler.transform(X)
 
         # Convert to tensors
         Xtrain = torch.tensor(Xtrain, dtype=torch.float32)
@@ -505,7 +503,7 @@ class DeepLearningPipeline:
         input_dim = Xtrain.shape[1]
         output_dim = len(np.unique(Ytrain.numpy())) if self.mode=="Classification" else 1
 
-        return train_dataloader, test_dataloader, Xtest.numpy(), input_dim, output_dim, scaler, target_encoder, df
+        return train_dataloader, test_dataloader, X, Xtest.numpy(), input_dim, output_dim, scaler, target_encoder, df
 
 
 
@@ -536,19 +534,19 @@ if __name__ == '__main__':
     # verbose=1
     weight_decay=1e-4#l2_reg
 
-    FEATURE_COLS = ["sepal_length", "sepal_width", "petal_length", "petal_width"] 
-    target_col = "species"
-
 
     if mode=='Regression':
         CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/housing.csv"
+        target_col = "price"
 
     elif mode=='Classification':
         CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/iris.csv"
+        feature_cols = ["sepal_length", "sepal_width", "petal_length", "petal_width"] 
+        target_col = "species"
 
     pipe = DeepLearningPipeline(mode=mode)
 
-    train_dataloader, test_dataloader, Xtest, input_dim, output_dim, scaler, target_encoder, df = \
+    train_dataloader, test_dataloader, X, Xtest, input_dim, output_dim, scaler, target_encoder, df = \
         pipe.load_and_preprocess_data(
             CSV_PATH,
             target_col,
@@ -617,8 +615,6 @@ if __name__ == '__main__':
         batch_norm=batch_norm,
         random_seed=random_seed
     )
-
-    print(preds)
 
 
 # public web app 
