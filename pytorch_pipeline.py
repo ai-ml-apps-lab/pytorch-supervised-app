@@ -224,7 +224,8 @@ class DeepLearningPipeline:
             if early_stopper.should_stop:
                 break
 
-        model.load_state_dict(torch.load(save_path))
+        if os.path.exists(save_path):
+            model.load_state_dict(torch.load(save_path))
 
         history = {
             "train_loss": train_loss_hist,
@@ -416,7 +417,8 @@ class DeepLearningPipeline:
             random_seed=random_seed
         )
 
-        model.load_state_dict(torch.load(save_path, map_location=self.device))
+        if os.path.exists(save_path):
+            model.load_state_dict(torch.load(save_path, map_location=self.device))
         model.to(self.device)
         model.eval()
 
