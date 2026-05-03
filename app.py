@@ -5,7 +5,7 @@ import numpy as np
 from pytorch_pipeline import SequentialNet, DeepLearningPipeline
 
 st.set_page_config(layout="wide")
-st.title("PyTorch Deep Learning UI")
+st.title("PyTorch Deep Learning App")
 
 # Upload CSV
 uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
@@ -21,8 +21,8 @@ st.dataframe(df.head())
 
 columns = df.columns.tolist()
 
-# PARAMETERS
-st.sidebar.subheader("Model Parameters")
+# Configuration
+st.sidebar.subheader("Model Configuration")
 
 col1, col2, col3 = st.sidebar.columns(3)
 

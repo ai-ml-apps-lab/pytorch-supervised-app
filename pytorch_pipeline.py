@@ -451,9 +451,10 @@ class DeepLearningPipeline:
 
         # Handle non-numeric features
         for col in X.columns:
-            if not np.issubdtype(X[col].dtype, np.number):
-                le = LabelEncoder()
-                X[col] = le.fit_transform(X[col])
+            try:
+                X[col] = pd.to_numeric(X[col])
+            except:
+                X[col] = LabelEncoder().fit_transform(X[col].astype(str))
 
         #Target encoding (classification only) 
         target_encoder = None
@@ -602,4 +603,3 @@ if __name__ == '__main__':
         batch_norm=batch_norm,
         random_seed=random_seed
     )
-    
