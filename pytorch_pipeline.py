@@ -6,7 +6,6 @@ training, evaluation, and prediction. It supports both classification and regres
 allowing for flexible use across different datasets and tasks.
 """
 # system libraries
-from csv import writer
 import os
 import random
 import numpy as np
@@ -29,7 +28,6 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import TensorDataset, DataLoader
-from torch.utils.tensorboard import SummaryWriter
 
 
 class SequentialNet(nn.Module):
@@ -159,8 +157,6 @@ class DeepLearningPipeline:
         train_acc_hist = []
         val_acc_hist = []
 
-        writer = SummaryWriter(log_dir="./logs")
-
         for epoch in range(num_epochs):
             # Train
             model.train()
@@ -223,18 +219,9 @@ class DeepLearningPipeline:
                     f"Val Loss:   {val_loss:.4f}"
                 )
 
-            # writer.add_scalar("Loss/Train", train_loss, epoch)
-            # writer.add_scalar("Loss/Validation", val_loss, epoch)
-            # writer.add_scalar("LR", optimizer.param_groups[0]['lr'], epoch)
-
-            # if self.mode == "Classification":
-            #     writer.add_scalar("Accuracy/Train", np.mean(train_acc), epoch)
-            #     writer.add_scalar("Accuracy/Validation", np.mean(val_acc), epoch)
             
             if early_stopper.should_stop:
                 break
-
-        # writer.close()
 
         model.load_state_dict(torch.load(save_path))
 
