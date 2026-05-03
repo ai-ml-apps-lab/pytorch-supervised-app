@@ -602,7 +602,4 @@ if __name__ == '__main__':
         batch_norm=batch_norm,
         random_seed=random_seed
     )
-
-
-# public web app 
-
+    

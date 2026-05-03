@@ -4,12 +4,8 @@ import numpy as np
 
 from pytorch_pipeline import SequentialNet, DeepLearningPipeline
 
-
 st.set_page_config(layout="wide")
 st.title("PyTorch Deep Learning UI")
-
-# SIDEBAR CONFIG
-# st.sidebar.header("⚙️ Configuration")
 
 # Upload CSV
 uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
@@ -24,8 +20,6 @@ st.write("### 📄 Dataset Preview")
 st.dataframe(df.head())
 
 columns = df.columns.tolist()
-
-
 
 # PARAMETERS
 st.sidebar.subheader("Model Parameters")
@@ -170,11 +164,6 @@ if st.button("🚀 Run Training"):
 
         st.write(f"MAE: {mae:.4f}")
         st.write(f"R2: {r2:.4f}")
-
-        # st.scatter_chart(pd.DataFrame({
-        #     "Predictions": y_pred.flatten(),
-        #     "Targets": y_true.flatten()
-        # }))
 
     # SAVE CSV
     st.subheader("💾 Download Predictions")
