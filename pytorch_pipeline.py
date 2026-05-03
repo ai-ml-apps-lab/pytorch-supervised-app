@@ -451,10 +451,15 @@ class DeepLearningPipeline:
 
         # Handle non-numeric features
         for col in X.columns:
-            try:
-                X[col] = pd.to_numeric(X[col])
-            except:
+            if X[col].dtype == "object":
+                # fill NaN with mode before encoding
+                X[col] = X[col].fillna(X[col].mode()[0])
                 X[col] = LabelEncoder().fit_transform(X[col].astype(str))
+            else:
+                # convert to numeric
+                X[col] = pd.to_numeric(X[col], errors='coerce')
+                # fill NaN with mean
+                X[col] = X[col].fillna(X[col].mean())
 
         #Target encoding (classification only) 
         target_encoder = None
