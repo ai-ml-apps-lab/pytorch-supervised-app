@@ -8,6 +8,7 @@ allowing for flexible use across different datasets and tasks.
 # system libraries
 import os
 import random
+import time
 import numpy as np
 import pandas as pd
 import seaborn as sb
@@ -392,7 +393,7 @@ class DeepLearningPipeline:
 
     def predict_from_checkpoint(
         self,
-        model_name,
+        save_path,
         input_dim,
         hidden_units,
         output_dim,
@@ -415,7 +416,7 @@ class DeepLearningPipeline:
             random_seed=random_seed
         )
 
-        model.load_state_dict(torch.load(model_name, map_location=self.device))
+        model.load_state_dict(torch.load(save_path, map_location=self.device))
         model.to(self.device)
         model.eval()
 
@@ -514,17 +515,14 @@ if __name__ == '__main__':
     lr=0.0001 
     dropout_rate=0#0.1
     batch_norm=False#True
-    # l2_reg=None#1e-4
-    # callback=False#True
     patience=10
     lr_factor=0.5
     lr_patience=5
-    model_name='best_model.pth'
-    # log_dir='./logs'
+    # save_path='best_model.pth'
+    save_path = f"model_{int(time.time())}.pth"
     epochs=30
     test_size=0.2
     batch_size=8
-    # verbose=1
     weight_decay=1e-4#l2_reg
 
 
@@ -567,7 +565,7 @@ if __name__ == '__main__':
         lr=lr,
         weight_decay=weight_decay,
         patience=patience,
-        save_path=model_name,
+        save_path=save_path,
         lr_factor=lr_factor,
         lr_patience=lr_patience,
     )
@@ -597,7 +595,7 @@ if __name__ == '__main__':
 
     # Prediction only (no training code involved)
     preds = pipe.predict_from_checkpoint(
-        model_name=model_name,
+        save_path=save_path,
         input_dim=input_dim,
         hidden_units=units,
         output_dim=output_dim,

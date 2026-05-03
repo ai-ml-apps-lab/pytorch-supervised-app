@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import time
 
 from pytorch_pipeline import SequentialNet, DeepLearningPipeline
 
@@ -34,40 +35,39 @@ with col1:
     # Target column
     target_col = st.selectbox("Target Column", columns)
 
-    random_seed = st.number_input("Random Seed", value=42)
-
     activation = st.selectbox(
         "Activation", ["relu", "tanh", "sigmoid", "leaky_relu"]
     )
 
     optimizer = st.selectbox("Optimizer", ["adam", "sgd", "rmsprop"])
 
-    units_str = st.text_input("Hidden Units", "[64,128,64]")
-    units = eval(units_str)
+    test_size = st.number_input("Test Size", value=0.2)
+
+    batch_size = st.number_input("Batch Size", value=8)
 
 with col2:
 
+    epochs = st.number_input("Epochs", value=30)
+
+    units_str = st.text_input("Hidden Units", "[64,128,64]")
+    units = eval(units_str)
+
     lr = st.number_input("Learning Rate", value=0.0001, format="%.5f")
 
-    dropout_rate = st.number_input("Dropout", value=0.0)
+    random_seed = st.number_input("Random Seed", value=42)
 
     batch_norm = st.selectbox("Batch Norm", [False, True])
+
+
+with col3:
+
+    dropout_rate = st.number_input("Dropout", value=0.0)
 
     patience = st.number_input("Patience", value=10)
 
     lr_factor = st.number_input("LR Factor", value=0.5)
 
     lr_patience = st.number_input("LR Patience", value=5)
-
-with col3:
-
-    model_name = st.text_input("Model Name", "best_model.pth") #####
-
-    epochs = st.number_input("Epochs", value=30)
-
-    test_size = st.number_input("Test Size", value=0.2)
-
-    batch_size = st.number_input("Batch Size", value=8)
 
     weight_decay = st.number_input("Weight Decay", value=1e-4, format="%.6f")
 
@@ -102,6 +102,8 @@ if st.button("🚀 Run Training"):
 
     st.write("### 🏋️ Training...")
 
+    save_path = f"model_{int(time.time())}.pth"
+
     model, history = pipe.train_model(
         model,
         train_loader,
@@ -111,7 +113,7 @@ if st.button("🚀 Run Training"):
         lr=lr,
         weight_decay=weight_decay,
         patience=patience,
-        save_path=model_name,
+        save_path=save_path,
         lr_factor=lr_factor,
         lr_patience=lr_patience,
     )
@@ -169,7 +171,7 @@ if st.button("🚀 Run Training"):
     st.subheader("💾 Download Predictions")
 
     preds = pipe.predict_from_checkpoint(
-        model_name,
+        save_path,
         input_dim,
         units,
         output_dim,
