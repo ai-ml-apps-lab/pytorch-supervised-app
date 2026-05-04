@@ -6,26 +6,26 @@ Ideal for quick experiments, demos, and teaching.
 ---
 ## Features
 
-Upload CSV datasets
+* Upload CSV datasets
 
-Supports:
-    Classification
-    Regression
+* Supports:
+    * Classification
+    * Regression
 
-Interactive UI:
-    Select target column
-    Configure model & hyperparameters
+* Interactive UI:
+    * Select target column
+    * Configure model & hyperparameters
 
-Built-in:
-    Training + validation
-    Early stopping
-    LR scheduler
+* Built-in:
+    * Training + validation
+    * Early stopping
+    * LR scheduler
 
-Visualizations:
-    Loss curves
-    Accuracy (classification)
+* Visualizations:
+    * Loss curves
+    * Accuracy (classification)
 
-Export predictions as CSV
+* Export predictions as CSV
 
 ---
 
