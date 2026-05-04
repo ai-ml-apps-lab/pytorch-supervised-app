@@ -1,5 +1,5 @@
 """
-pytorch supervised learning template for classification and regression tasks, 
+Pytorch supervised learning template for classification and regression tasks, 
 with early stopping, learning rate scheduling, and comprehensive evaluation metrics.
 The code is organized into modular functions for data loading, model definition, 
 training, evaluation, and prediction. It supports both classification and regression modes, 
@@ -529,13 +529,18 @@ if __name__ == '__main__':
 
 
     if mode=='Regression':
-        CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/housing.csv"
+        CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/data/housing.csv"
         target_col = "price"
+        # CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/data/Kaggle_house_rent.csv"
+        # target_col = "Rent"
+
 
     elif mode=='Classification':
-        CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/iris.csv"
+        CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/data/iris.csv"
         feature_cols = ["sepal_length", "sepal_width", "petal_length", "petal_width"] 
         target_col = "species"
+        # CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/data/Kaggle_house_rent.csv"
+        # target_col = "Furnishing Status"
 
     pipe = DeepLearningPipeline(mode=mode)
 

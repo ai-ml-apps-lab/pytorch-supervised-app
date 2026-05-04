@@ -1,92 +1,107 @@
-🧠 PyTorch Supervised Learning App (Streamlit UI)
+# PyTorch Supervised Learning App 
 
-A simple and flexible PyTorch-based app for classification and regression, wrapped in an interactive Streamlit UI.
-Built for quick experiments, teaching, and lightweight ML workflows.
+A lightweight PyTorch app for **classification and regression** with an interactive **Streamlit UI**.
+Ideal for quick experiments, demos, and teaching.
 
-🚀 Features
-Upload your own CSV dataset
+---
+## Features
+
+Upload CSV datasets
+
 Supports:
-✅ Classification
-✅ Regression
+    Classification
+    Regression
+
 Interactive UI:
-Select target column
-Configure model architecture
-Tune hyperparameters
+    Select target column
+    Configure model & hyperparameters
+
 Built-in:
-Training & validation loop
-Early stopping
-Learning rate scheduler
+    Training + validation
+    Early stopping
+    LR scheduler
+
 Visualizations:
-Loss curves
-Accuracy (classification)
-Regression scatter plots
-Export:
-📥 Download predictions as CSV
-📁 Project Structure
-.
-├── data/
-│   ├── housing.csv
-│   └── iris.csv
-├── app.py                  # Streamlit UI
-├── pytorch_pipeline.py     # Model + training logic (OOP)
-├── DNN_tensorflow.py       # (optional / comparison)
-├── requirements.txt
-├── README.md
-└── .gitignore
-⚙️ Installation
+    Loss curves
+    Accuracy (classification)
+
+Export predictions as CSV
+
+---
+
+## Repository Structure
+
+```
+data/
+app.py                  # Streamlit UI
+pytorch_pipeline.py     # Model + training (OOP)
+requirements.txt
+README.md
+```
+---
+
+## Installation
+
+```bash
 pip install -r requirements.txt
 
-(or manually install: torch, pandas, numpy, scikit-learn, matplotlib, seaborn, streamlit)
-
-▶️ Run the App (Local)
 streamlit run app.py
 
-Then open:
-👉 http://localhost:8501
+Open: http://localhost:8501
+```
 
-🧩 Usage
-Upload a CSV file
+---
+## Usage
+
+Upload CSV
+
 Select:
-Problem type (Classification / Regression)
-Target column
-(Optional) Adjust parameters:
-Network architecture (e.g. [64,128,64])
-Learning rate, batch size, epochs, etc.
+    Task (Classification / Regression)
+    Target column
+    tune parameters
+
 Click Run Training
-View:
-Metrics
-Training curves
-Download predictions as CSV
-🔧 Key Parameters
-Parameter	Description
-units	Hidden layers (e.g. [64,128,64])
-activation	relu / tanh / sigmoid / leaky_relu
-lr	Learning rate
-batch_size	Training batch size
-epochs	Number of epochs
-dropout_rate	Regularization
-batch_norm	Enable batch normalization
-patience	Early stopping
-📊 Outputs
-Classification
-Accuracy
-Loss & accuracy curves
-Regression
-MAE / MSE (labeled as r2 in code)
-Prediction vs target scatter
-Loss curve
-⚠️ Notes
-units uses eval() → safe for local use, not production
-Regression “r2” is actually MSE (kept as-is in code)
-All columns except target are used as features
-🌐 Deployment
-Option 1 — Local
-streamlit run app.py
-Option 2 — Cloud (Free)
 
-Deploy via **Streamlit Cloud:
+View results & download predictions
 
-Push repo to GitHub
-Go to Streamlit Cloud
-Select repo + app.py
-Deploy
+---
+## Key Params
+
+units → hidden layers (e.g. [64,128,64])
+
+activation → relu / tanh / sigmoid / leaky_relu
+
+lr → learning rate
+
+batch_size, epochs
+
+dropout_rate, batch_norm
+
+patience → early stopping
+---
+## Outputs
+
+1. Classification
+
+    * Accuracy
+    * Loss & accuracy curves
+
+2. Regression
+
+   *  MAE / MSE
+   * Loss curve
+
+---
+## Notes
+
+* units uses eval() (safe locally)
+
+* “r2” in code = actually MSE
+
+* All columns except target are used as features
+---
+
+## Deployment
+* Local: streamlit run app.py
+* Cloud: deploy via Streamlit Cloud (GitHub repo → select app.py)
+---
