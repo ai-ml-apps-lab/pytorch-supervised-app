@@ -43,6 +43,9 @@ README.md
 ## Installation
 
 ```bash
+
+python 3.11 
+
 pip install -r requirements.txt
 
 streamlit run app.py
