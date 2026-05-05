@@ -176,7 +176,7 @@ class DeepLearningPipeline:
 
                 optimizer.zero_grad()
                 preds = model(xb)
-                loss = loss_fn(preds.view(-1), yb)
+                loss = loss_fn(preds.squeeze(), yb)
                 loss.backward()
                 optimizer.step()
 
@@ -202,7 +202,7 @@ class DeepLearningPipeline:
                 for xb, yb in val_loader:
                     xb, yb = xb.to(self.device), yb.to(self.device)
                     preds = model(xb)
-                    loss = loss_fn(preds.view(-1), yb)
+                    loss = loss_fn(preds.squeeze(), yb)
 
                     val_losses.append(loss.item())
 
@@ -258,10 +258,10 @@ class DeepLearningPipeline:
                 xb, yb = xb.to(self.device), yb.to(self.device)
                 preds = model(xb)
 
-                loss = loss_fn(preds.view(-1), yb)
+                loss = loss_fn(preds.squeeze(), yb)
                 losses.append(loss.item())
 
-                metrics = metrics_fn(preds.view(-1), yb)
+                metrics = metrics_fn(preds.squeeze(), yb)
                 metrics_all.append(metrics)
 
         mean_loss = np.mean(losses)
