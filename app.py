@@ -43,11 +43,11 @@ with col1:
 
     test_size = st.number_input("Test Size", value=0.2)
 
-    batch_size = st.number_input("Batch Size", value=8)
+    batch_size = st.number_input("Batch Size", value=16)
 
 with col2:
 
-    epochs = st.number_input("Epochs", value=30)
+    epochs = st.number_input("Epochs", value=50)
 
     units_str = st.text_input("Hidden Units", "[64,128,64]")
     units = eval(units_str)
@@ -67,7 +67,7 @@ with col3:
 
     lr_factor = st.number_input("LR Factor", value=0.5)
 
-    lr_patience = st.number_input("LR Patience", value=5)
+    lr_patience = st.number_input("LR Patience", value=10)
 
     weight_decay = st.number_input("Weight Decay", value=1e-4, format="%.6f")
 

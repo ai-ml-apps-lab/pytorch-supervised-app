@@ -90,18 +90,18 @@ class DeepLearningPipeline:
             loss_fn = nn.MSELoss()
 
             def metrics_fn(preds, y):
-                preds_np = preds.detach().cpu().numpy()
-                y_np = y.detach().cpu().numpy()
-                mask = np.isfinite(preds_np) & np.isfinite(y_np)
+                # preds_np = preds.detach().cpu().numpy()
+                # y_np = y.detach().cpu().numpy()
+                # mask = np.isfinite(preds_np) & np.isfinite(y_np)
 
-                preds_np = preds_np[mask]
-                y_np = y_np[mask]
+                # preds_np = preds_np[mask]
+                # y_np = y_np[mask]
 
                 mae = mean_absolute_error(
-                    y_np, preds_np
+                    y, preds
                 )
                 r2 = r2_score(
-                    y_np, preds_np
+                    y, preds
                 )
                 return {"mae": mae, "r2": r2}
 
@@ -354,22 +354,21 @@ class DeepLearningPipeline:
         y_true
     ):
         
-        preds_np = y_pred.detach().cpu().numpy()
-        y_np = y_true.detach().cpu().numpy()
-        mask = np.isfinite(preds_np) & np.isfinite(y_np)
+        # preds_np = y_pred.detach().cpu().numpy()
+        # y_np = y_true.detach().cpu().numpy()
+        # mask = np.isfinite(preds_np) & np.isfinite(y_np)
 
-        preds_np = preds_np[mask]
-        y_np = y_np[mask]
+        # preds_np = preds_np[mask]
+        # y_np = y_np[mask]
 
-
-        r2 = r2_score(y_np, preds_np)
-        mae = mean_absolute_error(y_np, preds_np)
+        r2 = r2_score(y_true, y_pred)
+        mae = mean_absolute_error(y_true, y_pred)
 
         print(f"r²: {r2:.4f}")
         print(f"mae: {mae:.4f}")
 
         plt.figure()
-        plt.scatter(preds_np, y_np, alpha=0.8)
+        plt.scatter(y_pred, y_true, alpha=0.8)
         plt.xlabel("Predictions")
         plt.ylabel("Targets")
         plt.title("Predictions vs Targets")
@@ -461,6 +460,7 @@ class DeepLearningPipeline:
         batch_size=32
     ):
         df = pd.read_csv(filepath)
+        df = df.replace(["None", "none", "nan", "NaN", ""], np.nan)
 
         X = df.drop(columns=[target_col]).copy()
         y = df[target_col].copy()
@@ -472,21 +472,25 @@ class DeepLearningPipeline:
         for col in X.columns:
             if X[col].dtype == "object":
                 # fill NaN with mode before encoding
-                X[col] = X[col].astype(str)
                 X[col] = X[col].fillna(X[col].mode()[0])
+                X[col] = X[col].astype(str)
                 X[col] = LabelEncoder().fit_transform(X[col])
             else:
                 X[col] = pd.to_numeric(X[col], errors='coerce')
                 # fill NaN with mean
                 X[col] = X[col].fillna(X[col].mean())
 
+
         #Target encoding (classification only) 
         target_encoder = None
         if self.mode == "Classification":
+            y = y.fillna(y.mode()[0])
             target_encoder = LabelEncoder()
             y = target_encoder.fit_transform(y)
             y = torch.tensor(y, dtype=torch.long)
+
         else:
+            y = y.fillna(y.mean())
             y = torch.tensor(y.values, dtype=torch.float32)
 
         # Train/test split
@@ -523,7 +527,7 @@ if __name__ == '__main__':
 
 
     mode = "Classification"
-    # mode='Regression'
+    # mode="Regression"
 
     # Parameters
     random_seed=42
@@ -535,28 +539,36 @@ if __name__ == '__main__':
     batch_norm=False#True
     patience=10
     lr_factor=0.5
-    lr_patience=5
+    lr_patience=10
     # save_path='best_model.pth'
     save_path = f"model_{int(time.time())}.pth"
-    epochs=30
+    epochs=100
     test_size=0.2
-    batch_size=8
+    batch_size=16
     weight_decay=1e-4#l2_reg
 
 
     if mode=='Regression':
         # CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/data/housing.csv"
         # target_col = "price"
-        CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/data/Kaggle_house_rent.csv"
-        target_col = "Rent"
+        # CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/data/Kaggle_house_rent.csv"
+        # target_col = "Rent"
+        # CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/data/House_Price.csv"
+        # target_col = "price"
+        CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/data/MBA_ADMISSIONS.csv"
+        target_col = "pre_score"
 
 
     elif mode=='Classification':
         # CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/data/iris.csv"
         # feature_cols = ["sepal_length", "sepal_width", "petal_length", "petal_width"] 
         # target_col = "species"
-        CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/data/Kaggle_house_rent.csv"
-        target_col = "Furnishing Status"
+        # CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/data/Kaggle_house_rent.csv"
+        # target_col = "Furnishing Status"
+        # CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/data/House_Price.csv"
+        # target_col = "waterbody"
+        CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/data/MBA_ADMISSIONS.csv"
+        target_col = "Specialization"
 
     pipe = DeepLearningPipeline(mode=mode)
 
