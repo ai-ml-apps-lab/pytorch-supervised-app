@@ -5,7 +5,7 @@ Ideal for quick experiments, demos, and teaching wih comprehensive evaluation me
 For flexible use across different datasets and tasks.
 
 ---
-## Features
+## Main Features
 
 * Upload CSV datasets
 
@@ -20,11 +20,11 @@ For flexible use across different datasets and tasks.
 * Built-in:
     * Training + validation
     * Early stopping
-    * LR scheduler
+    * Learning rate scheduler
 
 * Visualizations:
     * Loss curves
-    * Accuracy (classification)
+    * Accuracy curves (classification)
 
 * Export predictions as CSV
 
@@ -56,6 +56,7 @@ pip install -r requirements.txt
 
 ## Deployment
 * Local: streamlit run app.py
+
 Open: http://localhost:8501
 
 * Cloud: deploy via Streamlit Cloud (GitHub repo → select app.py)
@@ -69,11 +70,12 @@ Open: http://localhost:8501
 ![APP](images/app1.png)
 
 **(b) Select classification or regression mode**
+
 **Choose the target column for prediction**
 
 ![APP](images/app2.png)
 
-**(c) Train the model to view evaluation metrics and fine-tune the parameters if needed**
+**(c) 'Run Training' to view evaluation metrics and fine-tune the parameters if needed**
 
 ![APP](images/app3.png)
 
