@@ -57,7 +57,7 @@ pip install -r requirements.txt
 ## Deployment
 * Local: streamlit run app.py
 
-Open: http://localhost:8501
+    Open: http://localhost:8501
 
 * Cloud: deploy via Streamlit Cloud (GitHub repo → select app.py)
 ---
