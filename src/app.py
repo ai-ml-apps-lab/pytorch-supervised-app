@@ -1,3 +1,8 @@
+
+"""
+This is the main Streamlit app for the PyTorch Deep Learning Pipeline.
+"""
+#Libraries
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -47,7 +52,7 @@ with col1:
 
 with col2:
 
-    epochs = st.number_input("Epochs", value=50)
+    epochs = st.number_input("Epochs", value=100)
 
     units_str = st.text_input("Hidden Units", "[64,128,64]")
     units = eval(units_str)

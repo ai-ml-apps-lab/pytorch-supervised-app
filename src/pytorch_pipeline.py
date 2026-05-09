@@ -522,9 +522,8 @@ class DeepLearningPipeline:
         return train_dataloader, test_dataloader, X, Xtest.numpy(), input_dim, output_dim, scaler, target_encoder, df
 
 
-
+# Standalone test code to run the pipeline without Streamlit UI
 if __name__ == '__main__':
-
 
     mode = "Classification"
     # mode="Regression"
@@ -536,7 +535,7 @@ if __name__ == '__main__':
     units=[64,128,64]
     lr=0.0001 
     dropout_rate=0#0.1
-    batch_norm=False#True
+    batch_norm=False#True #normalization
     patience=10
     lr_factor=0.5
     lr_patience=10
@@ -549,26 +548,12 @@ if __name__ == '__main__':
 
 
     if mode=='Regression':
-        # CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/data/housing.csv"
-        # target_col = "price"
-        # CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/data/Kaggle_house_rent.csv"
-        # target_col = "Rent"
-        # CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/data/House_Price.csv"
-        # target_col = "price"
-        CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/data/MBA_ADMISSIONS.csv"
-        target_col = "pre_score"
-
+        CSV_PATH=r"path/to/data.csv"
+        target_col = "selected target column"
 
     elif mode=='Classification':
-        # CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/data/iris.csv"
-        # feature_cols = ["sepal_length", "sepal_width", "petal_length", "petal_width"] 
-        # target_col = "species"
-        # CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/data/Kaggle_house_rent.csv"
-        # target_col = "Furnishing Status"
-        # CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/data/House_Price.csv"
-        # target_col = "waterbody"
-        CSV_PATH=r"E:/AB/ai_ml_apps_lab_github_2026/3Pytorch/data/MBA_ADMISSIONS.csv"
-        target_col = "Specialization"
+        CSV_PATH=r"path/to/data.csv"
+        target_col = "selected target column"
 
     pipe = DeepLearningPipeline(mode=mode)
 
